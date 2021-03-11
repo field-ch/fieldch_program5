@@ -12,6 +12,7 @@ int main(int argc, char *argv[]){
 	int i = 0;
 	for(; i < keylen; i++){
 		KEY[i] = rand()%27 + 65;
+		if(KEY[i] == 91){KEY[i] = ' ';} //replace '[' with ' '
 	}
 	printf("%s\n", KEY); //print key to stdout, which can be redirected to a file
 

@@ -46,15 +46,16 @@ int main(int argc, char *argv[]){
 
 	buffer[strcspn(buffer, "\n")] = '\0';
 	buf[strcspn(buf, "\n")] = '\0';
-
-	strcat(buffer, " ");
-	strcat(buffer, buf);
 	
-	chars_w = send(csocket, buffer, strlen(buffer), 0);
+	strcat(buffer, ">"); //append delimeter 
+	strcat(buffer, buf); //append key
+
+	chars_w = send(csocket, buffer, strlen(buffer), 0); //send "plaintext>key" which can be tokenized using ">" as the delimeter character
+
 	memset(buffer, '\0', sizeof(buffer));
 
 	chars_r = recv(csocket, buffer, sizeof(buffer)-1, 0);
-	printf("CLIENT: received ciphertext from server = %s\n", buffer);
+	printf("%s\n", buffer);
 
 	close(csocket);	
 	return 0;

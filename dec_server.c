@@ -11,13 +11,13 @@
 #define MAX_SOCKETS 5 //maximum number of concurrent sockets
 #define MAX_BUF 256 //maximum buffer size 
 #define HOSTNAME "localhost"
-#define DELIM " " //delimeter for strtok
+#define DELIM ">" //delimeter for strtok
 
 int num_sockets = 0; //socket counter gv
 
-void plain2cipher(char *);
+void plain2cipher(char **);
 
-void plain2cipher(char *msg){
+void plain2cipher(char **msg){
 
 	char * token;
 	char plaintext[MAX_BUF];
@@ -32,36 +32,39 @@ void plain2cipher(char *msg){
 	memset(buffer, '\0', sizeof(buffer));
 	memset(mkmod, 0, sizeof(mkmod));
 
-	token = strtok(msg, DELIM);
-	strcpy(plaintext, token);
+	token = strtok(*msg, DELIM);
+	strcpy(ciphertext, token);
 
 	token = strtok(NULL, DELIM);
 	strcpy(key, token);
 
 	int i = 0;
-	for(; i < strlen(plaintext); i++){
+	for(; i < strlen(ciphertext); i++){
 		
-		if(plaintext[i] == ' '){
-			plaintext[i] = 91; //replace space character with ASCII value right after Z
+		if(ciphertext[i] == ' '){
+			ciphertext[i] = 91; //replace space character with ASCII value right after Z
 		}
 		if(key[i] == ' '){
 			key[i] = 91; //same as above. This is to keep the modular arithmetic simple
 		}
-		int val = plaintext[i]-65 + key[i]-65; //65 is the ASCII value of 'A' (we want the numeric value range to be from 0-27) so this normalizes 'A' to be 0 
-		mkmod[i] = val%27 + 65; //need to add 65 back in order for the right ASCII character to be stored into the buffer
-		buffer[i] = mkmod[i];
+		int val = (ciphertext[i] - 64) - (key[i] - 64); //65 is the ASCII value of 'A' (we want the numeric value range to be from 0-27) so this normalizes 'A' to be 0 
+		mkmod[i] = val%27 + 64; //need to add 65 back in order for the right ASCII character to be stored into the buffer
+		plaintext[i] = mkmod[i];
 	}	
-	memset(msg, '\0', strlen(msg)); //clear the original message
-	strcpy(msg, buffer); //copy the ciphertext to the original message
+	memset(*msg, '\0', sizeof(msg)); //clear the original message
+	strcpy(*msg, plaintext); //copy the plaintext to the original message
 }
 
 int main(int argc, char *argv[]){
 
 	int connection, port, numChars, wstatus;
-	char buffer[MAX_BUF];
+	char plaintext[MAX_BUF], key[MAX_BUF];
 	struct hostent * host;
 	struct sockaddr_in saddr, caddr;
 	socklen_t csize = sizeof(caddr);
+
+	char * buffer = (char*)calloc(MAX_BUF, sizeof(char));
+	memset(buffer, '\0', sizeof(buffer));
 
 	pid_t spawnpid;
 	memset((char*) &saddr, '\0', sizeof(saddr)); //clear the socket address
@@ -97,14 +100,17 @@ int main(int argc, char *argv[]){
 				exit(1);
 			case 0: //child process
 				memset(buffer, '\0', MAX_BUF);
-				numChars = recv(connection, buffer, MAX_BUF-1, 0); // receive plaintext + key from enc_client
+				memset(plaintext, '\0', MAX_BUF);
+				memset(key, '\0', MAX_BUF);
+
+				numChars = recv(connection, buffer, MAX_BUF-1, 0); // receive "ciphertext>key" from client
 				printf("SERVER: received message from client = %s\n", buffer);
 	
-				//TODO: call a function that tokenizes the plaintext + key string, handles the
-				//encryption to ciphertext and stores the ciphertext back into the original buffer
-				plain2cipher(buffer);
-	
-				numChars = send(connection, buffer, strlen(buffer), 0); //send ciphertext back to enc_client
+				//TODO: call a function that tokenizes the "ciphertext>key" string, handles the
+				//decryption to plaintext and stores the plaintext back in the original buffer
+				plain2cipher(&buffer);
+					
+				numChars = send(connection, buffer, strlen(buffer), 0); //send plaintext back to client
 				break;
 			default: //parent process(enc_server)
 				while(num_sockets >= 5){ // if 5 concurrent connections are active
@@ -117,6 +123,6 @@ int main(int argc, char *argv[]){
 		close(connection);	
 	}
 	close(Listen);
-
+	free(buffer);
 	return 0;
 }
